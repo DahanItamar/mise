@@ -58,7 +58,7 @@ jobs:
           set -e
           cat /tmp/baseline.log
           test "$status" -ne 0
-          grep -q 'Assertion failed.*watch_file hook has neither run nor task set' /tmp/baseline.log
+          grep -q 'assertion failed.*watch_file hook has neither run nor task set' /tmp/baseline.log
       - name: Clippy workspace, all features and targets
         run: cargo clippy --workspace --all-features --all-targets -- -D warnings
       - name: Build changed mise
