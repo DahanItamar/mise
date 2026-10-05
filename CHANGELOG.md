@@ -1,5 +1,44 @@
 # Changelog
 
+## [2026.10.4](https://github.com/jdx/mise/compare/v2026.10.3..v2026.10.4) - 2026-10-05
+
+### 🚀 Features
+
+- **(install)** add an opt-in identity-based install layout by @jdx in [#13951](https://github.com/jdx/mise/pull/13951)
+- **(install)** keep identity-layout installations in a shorter directory on Windows by @jdx in [#13952](https://github.com/jdx/mise/pull/13952)
+- **(installs)** list installations and choose the one requests without a lockfile use by @jdx in [#13953](https://github.com/jdx/mise/pull/13953)
+- **(installs)** move legacy installations into the identity layout by @jdx in [#13955](https://github.com/jdx/mise/pull/13955)
+
+### 🐛 Bug Fixes
+
+- **(dotenv)** leave a value ending in escaped whitespace unquoted by @jdx in [#13956](https://github.com/jdx/mise/pull/13956)
+- **(env)** fully redact secrets when redaction values overlap by @jdx in [#13962](https://github.com/jdx/mise/pull/13962)
+- **(install)** switch backends into a new installation, and resolve CLI-named versions without guessing by @jdx in [#13957](https://github.com/jdx/mise/pull/13957)
+- **(mcp)** reject run_task task names that start with a dash by @jdx in [#13961](https://github.com/jdx/mise/pull/13961)
+
+### 📚 Documentation
+
+- **(readme)** add Star History badges by @jdx in [#13968](https://github.com/jdx/mise/pull/13968)
+
+### 📦️ Dependency Updates
+
+- lock file maintenance by @renovate[bot] in [#13963](https://github.com/jdx/mise/pull/13963)
+
+### Ci
+
+- update pr closer action by @jdx in [#13970](https://github.com/jdx/mise/pull/13970)
+
+### 📦 Aqua Registry Updates
+
+#### New Packages (2)
+
+- [`editorconfig/editorconfig-core-go`](https://github.com/editorconfig/editorconfig-core-go)
+- [`tontinton/maki`](https://github.com/tontinton/maki)
+
+#### Updated Packages (1)
+
+- [`anchore/syft`](https://github.com/anchore/syft)
+
 ## [2026.10.3](https://github.com/jdx/mise/compare/v2026.10.2..v2026.10.3) - 2026-10-05
 
 ### 🚀 Features
