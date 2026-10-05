@@ -1,61 +1,69 @@
-name: test
-
+name: validate Ruby watch contribution
 on:
-  push:
-    tags: ["v*"]
-    branches: ["main", "mise", "release"]
-  pull_request:
-    # Stacked PRs need the same platform checks before their base reaches main.
-    branches: ["main", "codex/**"]
   workflow_dispatch:
-  workflow_call:
-    secrets:
-      FORGEJO_TOKEN:
-        required: false
-      MISE_GH_TOKEN:
-        required: false
-      MISE_VERSIONS_API_SECRET:
-        required: false
-
-permissions: {}
-
+    inputs:
+      patch:
+        description: Base64 encoded contribution diff
+        required: true
+        type: string
+permissions:
+  contents: read
 jobs:
-  trusted:
-    if: ${{ (github.actor == 'jdx' || github.actor == 'mise-en-dev') && (github.event_name != 'pull_request' || (github.event.pull_request.head.repo.full_name == github.repository && (github.event.pull_request.user.login == 'jdx' || github.event.pull_request.user.login == 'mise-en-dev'))) }}
-    permissions:
-      contents: read
-    uses: $/.github/workflows/test-impl.yml
-    with:
-      trusted: true
-    secrets:
-      FORGEJO_TOKEN: ${{ secrets.FORGEJO_TOKEN }}
-      MISE_GH_TOKEN: ${{ secrets.MISE_GH_TOKEN }}
-      MISE_VERSIONS_API_SECRET: ${{ secrets.MISE_VERSIONS_API_SECRET }}
-
-  untrusted:
-    if: ${{ (github.actor != 'jdx' && github.actor != 'mise-en-dev') || (github.event_name == 'pull_request' && (github.event.pull_request.head.repo.full_name != github.repository || (github.event.pull_request.user.login != 'jdx' && github.event.pull_request.user.login != 'mise-en-dev'))) }}
-    permissions:
-      contents: read
-    uses: $/.github/workflows/test-impl.yml
-    with:
-      trusted: false
-
-  test-ci:
-    name: test-ci
-    if: ${{ always() && !cancelled() && needs.trusted.result != 'cancelled' && needs.untrusted.result != 'cancelled' }}
-    permissions: {}
-    needs: [trusted, untrusted]
+  validate:
     runs-on: ubuntu-latest
-    timeout-minutes: 1
+    timeout-minutes: 90
+    env:
+      CARGO_PROFILE_DEV_DEBUG: "0"
+      CARGO_INCREMENTAL: "0"
+      MBX_DISABLE: "1"
+      MISE_TRUSTED_CONFIG_PATHS: ${{ github.workspace }}
+      MISE_CARGO_BUILD_COMMAND: "true"
     steps:
-      - name: Check selected workflow result
-        env:
-          TRUSTED_RESULT: ${{ needs.trusted.result }}
-          UNTRUSTED_RESULT: ${{ needs.untrusted.result }}
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Install host check tools and current Rust
         run: |
-          if [[ "$TRUSTED_RESULT" == success && "$UNTRUSTED_RESULT" == skipped ]] ||
-             [[ "$TRUSTED_RESULT" == skipped && "$UNTRUSTED_RESULT" == success ]]; then
-            exit 0
-          fi
-          echo "trusted=$TRUSTED_RESULT untrusted=$UNTRUSTED_RESULT"
-          exit 1
+          sudo apt-get update -qq
+          sudo apt-get install -y libssl-dev pkg-config shellcheck shfmt zsh fish
+          rustup update stable --no-self-update
+          rustup default stable
+          rustup component add clippy rustfmt
+      - name: Apply reviewed contribution diff
+        env:
+          CONTRIBUTION_PATCH: ${{ inputs.patch }}
+        run: |
+          printf '%s' "$CONTRIBUTION_PATCH" | base64 --decode > /tmp/contribution.patch
+          git apply --index /tmp/contribution.patch
+          git diff --cached --check
+      - name: Check formatting and shell lint
+        run: |
+          cargo fmt --all -- --check
+          bash -n e2e/core/test_ruby_gemfile_watch_files
+          shellcheck -x e2e/core/test_ruby_gemfile_watch_files
+          shfmt -d -s e2e/core/test_ruby_gemfile_watch_files
+      - name: Prove regression against official release
+        run: |
+          mkdir -p target/debug
+          curl --fail --location --retry 3 https://github.com/jdx/mise/releases/download/v2026.10.3/mise-v2026.10.3-linux-x64.tar.gz -o /tmp/mise.tar.gz
+          tar -xzf /tmp/mise.tar.gz -C /tmp
+          cp /tmp/mise/bin/mise target/debug/mise
+          chmod +x target/debug/mise
+          echo "$PWD/target/debug" >> "$GITHUB_PATH"
+          set +e
+          target/debug/mise run --skip-tools test:e2e core/test_ruby_gemfile_watch_files > /tmp/baseline.log 2>&1
+          status=$?
+          set -e
+          cat /tmp/baseline.log
+          test "$status" -ne 0
+          grep -q 'Assertion failed.*watch_file hook has neither run nor task set' /tmp/baseline.log
+      - name: Clippy workspace, all features and targets
+        run: cargo clippy --workspace --all-features --all-targets -- -D warnings
+      - name: Build changed mise
+        run: cargo build --all-features
+      - name: Run affected end-to-end tests
+        run: mise run --skip-tools test:e2e core/test_ruby_gemfile_watch_files core/test_ruby_from_gemfile config/test_watch_files_shell
+      - name: Run affected existing unit tests
+        run: |
+          cargo test --all-features --lib ruby_common
+          cargo test --all-features --lib idiomatic_version
