@@ -1,7 +1,7 @@
-name: validate Ruby watch contribution
+name: validate Ruby watch contribution on ARM
 on:
   push:
-    branches: [ci/validate-ruby-watch]
+    branches: [ci/validate-ruby-watch-arm]
   workflow_dispatch:
     inputs:
       patch:
@@ -12,7 +12,7 @@ permissions:
   contents: read
 jobs:
   validate:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
     timeout-minutes: 90
     env:
       CARGO_PROFILE_DEV_DEBUG: "0"
@@ -47,7 +47,7 @@ jobs:
       - name: Prove regression against official release
         run: |
           mkdir -p target/debug
-          curl --fail --location --retry 3 https://github.com/jdx/mise/releases/download/v2026.10.3/mise-v2026.10.3-linux-x64.tar.gz -o /tmp/mise.tar.gz
+          curl --fail --location --retry 3 https://github.com/jdx/mise/releases/download/v2026.10.3/mise-v2026.10.3-linux-arm64.tar.gz -o /tmp/mise.tar.gz
           tar -xzf /tmp/mise.tar.gz -C /tmp
           cp /tmp/mise/bin/mise target/debug/mise
           chmod +x target/debug/mise
